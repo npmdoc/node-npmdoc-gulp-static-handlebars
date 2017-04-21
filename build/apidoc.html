@@ -1,0 +1,336 @@
+<div class="apidocDiv">
+<style>
+/*csslint
+*/
+.apidocDiv {
+    background: #fff;
+    font-family: Arial, Helvetica, sans-serif;
+}
+.apidocDiv a[href] {
+    color: #33f;
+    font-weight: bold;
+    text-decoration: none;
+}
+.apidocDiv a[href]:hover {
+    text-decoration: underline;
+}
+.apidocCodeCommentSpan {
+    background: #bbf;
+    color: #000;
+    display: block;
+}
+.apidocCodeKeywordSpan {
+    color: #d00;
+    font-weight: bold;
+}
+.apidocCodePre {
+    background: #eef;
+    border: 1px solid;
+    color: #777;
+    padding: 5px;
+    white-space: pre-wrap;
+}
+.apidocFooterDiv {
+    margin-top: 20px;
+    text-align: center;
+}
+.apidocModuleLi {
+    margin-top: 10px;
+}
+.apidocSectionDiv {
+    border-top: 1px solid;
+    margin-top: 20px;
+}
+.apidocSignatureSpan {
+    color: #777;
+    font-weight: bold;
+}
+</style>
+<h1>api documentation for
+    <a
+
+    >gulp-static-handlebars (v1.2.0)</a>
+</h1>
+<h4>Compile handlebars into static files, taking data, partials and helpers from outside sources like files, database, and json through callbacks and promises.</h4>
+<div class="apidocSectionDiv"><a
+    href="#apidoc.tableOfContents"
+    id="apidoc.tableOfContents"
+><h1>table of contents</h1></a><ol>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.gulp-static-handlebars">module gulp-static-handlebars</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.gulp-static-handlebars.gulp-static-handlebars">
+            function <span class="apidocSignatureSpan"></span>gulp-static-handlebars
+            <span class="apidocSignatureSpan">(data, options)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.gulp-static-handlebars.instance">
+            function <span class="apidocSignatureSpan">gulp-static-handlebars.</span>instance
+            <span class="apidocSignatureSpan">(handlebarsInstance)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.gulp-static-handlebars.writable">
+            function <span class="apidocSignatureSpan">gulp-static-handlebars.</span>writable
+            <span class="apidocSignatureSpan">(options, write, end)</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+    <li class="apidocModuleLi"><a href="#apidoc.module.gulp-static-handlebars.writable">module gulp-static-handlebars.writable</a><ol>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.gulp-static-handlebars.writable.writable">
+            function <span class="apidocSignatureSpan">gulp-static-handlebars.</span>writable
+            <span class="apidocSignatureSpan">(options, write, end)</span>
+            </a>
+
+        </li>
+
+        <li>
+
+            <a class="apidocElementLiA" href="#apidoc.element.gulp-static-handlebars.writable.obj">
+            function <span class="apidocSignatureSpan">gulp-static-handlebars.writable.</span>obj
+            <span class="apidocSignatureSpan">(options, write, end)</span>
+            </a>
+
+        </li>
+
+    </ol></li>
+
+</ol></div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.gulp-static-handlebars" id="apidoc.module.gulp-static-handlebars">module gulp-static-handlebars</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.gulp-static-handlebars.gulp-static-handlebars" id="apidoc.element.gulp-static-handlebars.gulp-static-handlebars">
+        function <span class="apidocSignatureSpan"></span>gulp-static-handlebars
+        <span class="apidocSignatureSpan">(data, options)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">gulp-static-handlebars = function (data, options) {
+  options = options || {};
+  var dependencies = [];
+  Handlebars = instance();
+  var render = options.render || defaultRender;
+  //Go through a partials object
+
+  if (data) {
+    var dataDependencies;
+    if (isPromise(data)) {
+      dataDependencies = data.then(function (result) {
+        data = result;
+        return result;
+      });
+    } else {
+      dataDependencies = Promise.resolve(data);
+    }
+    dependencies.push(dataDependencies);
+  }
+
+
+  if (options.partials) {
+    var partialDependencies = getPromises(options.partials, function (id, contents) {
+      if (isFile(id)) {
+        id = getNameFromPath(id.path);
+      }
+      Handlebars.registerPartial(id, contents);
+    });
+    dependencies = dependencies.concat(partialDependencies);
+  }
+
+  //Go through a helpers object
+  if (options.helpers) {
+    var helperDependencies = getPromises(options.helpers, function (id, contents) {
+      if (isFile(id)) {
+        var helperFile = require(id.path);
+        if (_.isFunction(helperFile)) {
+          Handlebars.registerHelper(getNameFromPath(id.path), helperFile);
+        } else if (_.isObject(helperFile)) {
+          _.each(helperFile, function(value, key) {
+            Handlebars.registerHelper(key, value);
+          });
+        }
+      } else if (_.isString(id) &#x26;&#x26; _.isFunction(contents)) {
+        id = id.toLowerCase();
+        Handlebars.registerHelper(id, contents);
+      }
+    });
+    dependencies = dependencies.concat(helperDependencies);
+  }
+
+  return through.obj(function (file, enc, callback) {
+    var self = this;
+    Promise.all(dependencies).then(function () {
+      var tpl = Handlebars.compile(file.contents.toString());
+      render.call( this, tpl, data, file );
+
+    }.bind(this)).catch(function (err) {
+      self.emit(&#x27;error&#x27;, new gutil.PluginError(&#x27;gulp-static-handlebars&#x27;, err));
+    }).finally(function () {
+      callback();
+    });
+  });
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.gulp-static-handlebars.instance" id="apidoc.element.gulp-static-handlebars.instance">
+        function <span class="apidocSignatureSpan">gulp-static-handlebars.</span>instance
+        <span class="apidocSignatureSpan">(handlebarsInstance)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function instance(handlebarsInstance) {
+  if (arguments.length == 1) {
+    Handlebars = handlebarsInstance;
+  } else {
+    if (!Handlebars) {
+      Handlebars = require(&#x27;handlebars&#x27;);
+    }
+  }
+  return Handlebars;
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+      .pipe(gulp.dest(&#x27;./dist&#x27;));
+
+```
+
+## Get/Set Handlebars Instance
+```JavaScript
+
+var MyHandlebars = handlebars.<span class="apidocCodeKeywordSpan">instance</span>() // get Handlebars
+handlebars.instance(MyHandlebars) // use another Handlebars instance
+
+```
+
+
+## Install
+...</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.gulp-static-handlebars.writable" id="apidoc.element.gulp-static-handlebars.writable">
+        function <span class="apidocSignatureSpan">gulp-static-handlebars.</span>writable
+        <span class="apidocSignatureSpan">(options, write, end)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function writable(options, write, end) {
+  if (_.isFunction(options)) {
+    end = write;
+    write = options;
+    options = {};
+  }
+
+  var w = new WritableStream(options);
+
+  w._write = write;
+  if (end) {
+    w.end = end;
+  }
+
+  return w;
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocSectionDiv">
+<h1><a href="#apidoc.module.gulp-static-handlebars.writable" id="apidoc.module.gulp-static-handlebars.writable">module gulp-static-handlebars.writable</a></h1>
+
+
+    <h2>
+        <a href="#apidoc.element.gulp-static-handlebars.writable.writable" id="apidoc.element.gulp-static-handlebars.writable.writable">
+        function <span class="apidocSignatureSpan">gulp-static-handlebars.</span>writable
+        <span class="apidocSignatureSpan">(options, write, end)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function writable(options, write, end) {
+  if (_.isFunction(options)) {
+    end = write;
+    write = options;
+    options = {};
+  }
+
+  var w = new WritableStream(options);
+
+  w._write = write;
+  if (end) {
+    w.end = end;
+  }
+
+  return w;
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">n/a</pre></li>
+    </ul>
+
+
+
+    <h2>
+        <a href="#apidoc.element.gulp-static-handlebars.writable.obj" id="apidoc.element.gulp-static-handlebars.writable.obj">
+        function <span class="apidocSignatureSpan">gulp-static-handlebars.writable.</span>obj
+        <span class="apidocSignatureSpan">(options, write, end)</span>
+        </a>
+    </h2>
+    <ul>
+    <li>description and source-code<pre class="apidocCodePre">function obj(options, write, end) {
+  if (_.isFunction(options)) {
+    end = write;
+    write = options;
+    options = {};
+  }
+
+  return writable(_.defaults(options, { objectMode: true, highWaterMark: 16 }), write, end);
+}</pre></li>
+    <li>example usage<pre class="apidocCodePre">...
+
+function getNameFromPath(path) {
+return path.split(Path.sep).pop().split(&#x27;.&#x27;).shift();
+}
+
+function getPromiseFromPipe(pipe, fn) {
+var d = Promise.defer();
+pipe.pipe(writable.<span class="apidocCodeKeywordSpan">obj</span>(function (file, enc, cb) {
+  var str = file.contents.toString();
+  fn(file, str);
+  cb();
+}, function () {
+  //end
+  d.resolve();
+}));
+...</pre></li>
+    </ul>
+
+
+</div>
+
+<div class="apidocFooterDiv">
+    [ this document was created with
+    <a href="https://github.com/kaizhu256/node-utility2" target="_blank">utility2</a>
+    ]
+</div>
+</div>
